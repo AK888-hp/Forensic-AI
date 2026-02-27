@@ -1,0 +1,21 @@
+visit_id,timestamp,url,title,visit_duration_sec,browser,profile,ip_source
+1,2024-11-13 21:30:15,https://www.google.com/search?q=how+to+exfiltrate+data+undetected,Google Search,45,Chrome,Default,192.168.1.105
+2,2024-11-13 21:31:02,https://www.reddit.com/r/netsec/comments/data_exfil_methods,Reddit - Data Exfiltration Methods,312,Chrome,Default,192.168.1.105
+3,2024-11-13 21:37:00,https://www.google.com/search?q=tor+browser+download,Google Search,22,Chrome,Default,192.168.1.105
+4,2024-11-13 21:38:15,https://www.torproject.org/download/,Tor Browser Download,89,Chrome,Default,192.168.1.105
+5,2024-11-13 21:45:30,https://www.google.com/search?q=how+to+clear+windows+event+logs,Google Search,67,Chrome,Default,192.168.1.105
+6,2024-11-13 21:46:44,https://www.google.com/search?q=wevtutil+clear+logs+command,Google Search,34,Chrome,Default,192.168.1.105
+7,2024-11-13 21:47:20,https://docs.microsoft.com/wevtutil,Microsoft Docs - wevtutil,201,Chrome,Default,192.168.1.105
+8,2024-11-13 21:52:00,https://www.google.com/search?q=protonmail+sign+up+anonymous,Google Search,28,Chrome,Default,192.168.1.105
+9,2024-11-13 21:53:14,https://protonmail.com/signup,ProtonMail Signup,445,Chrome,Default,192.168.1.105
+10,2024-11-13 22:10:00,https://protonmail.com/login,ProtonMail Login,32,Chrome,Default,192.168.1.105
+11,2024-11-13 22:11:00,https://mail.protonmail.com/inbox,ProtonMail Inbox,890,Chrome,Default,192.168.1.105
+12,2024-11-13 23:45:00,https://www.google.com/search?q=7zip+encrypt+archive+command+line,Google Search,44,Chrome,Default,192.168.1.105
+13,2024-11-13 23:46:12,https://www.7-zip.org/faq.html,7-Zip FAQ - Encryption,167,Chrome,Default,192.168.1.105
+14,2024-11-14 00:00:30,https://mega.nz/login,MEGA Cloud Login,78,Chrome,Default,192.168.1.105
+15,2024-11-14 00:01:15,https://mega.nz/fm,MEGA File Manager,3240,Chrome,Default,192.168.1.105
+16,2024-11-14 00:06:00,https://www.google.com/search?q=how+to+tell+if+someone+knows+you+stole+files,Google Search,112,Chrome,Default,192.168.1.105
+17,2024-11-14 00:07:30,https://www.google.com/search?q=digital+forensics+can+recover+deleted+files,Google Search,298,Chrome,Default,192.168.1.105
+18,2024-11-14 00:09:45,https://www.google.com/search?q=how+to+destroy+evidence+on+computer,Google Search,67,Chrome,Default,192.168.1.105
+19,2024-11-14 00:10:20,https://www.dban.org,DBAN - Darik's Boot and Nuke,445,Chrome,Default,192.168.1.105
+20,2024-11-14 06:30:00,https://news.google.com,Google News,234,Chrome,Default,192.168.1.105

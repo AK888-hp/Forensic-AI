@@ -1,0 +1,210 @@
+import re
+import json
+import folium
+from pathlib import Path
+from datetime import datetime
+
+# ─────────────────────────────────────────
+# GPS EXTRACTION FROM MULTIPLE SOURCES
+# ─────────────────────────────────────────
+def extract_gps_from_text(text):
+    """
+    Extract GPS coordinates from any text source —
+    logs, emails, documents, chat exports.
+    Handles multiple coordinate formats.
+    """
+    locations = []
+    
+    # Decimal degrees: 12.9716, 77.5946
+    decimal_pattern = r'(-?\d{1,3}\.\d{4,})[,\s]+(-?\d{1,3}\.\d{4,})'
+    for match in re.finditer(decimal_pattern, text):
+        lat, lon = float(match.group(1)), float(match.group(2))
+        if -90 <= lat <= 90 and -180 <= lon <= 180:
+            locations.append({
+                "latitude": lat, "longitude": lon,
+                "format": "decimal_degrees",
+                "raw": match.group(0),
+                "context": text[max(0, match.start()-50):match.end()+50]
+            })
+    
+    # DMS format: 12°58'18"N 77°35'40"E
+    dms_pattern = r'(\d+)°(\d+)\'(\d+(?:\.\d+)?)"([NS])\s+(\d+)°(\d+)\'(\d+(?:\.\d+)?)"([EW])'
+    for match in re.finditer(dms_pattern, text):
+        d1,m1,s1,ref1,d2,m2,s2,ref2 = match.groups()
+        lat = float(d1) + float(m1)/60 + float(s1)/3600
+        lon = float(d2) + float(m2)/60 + float(s2)/3600
+        if ref1 == 'S': lat = -lat
+        if ref2 == 'W': lon = -lon
+        locations.append({
+            "latitude": round(lat,6), "longitude": round(lon,6),
+            "format": "DMS", "raw": match.group(0)
+        })
+    
+    # IP-based location hints (not GPS but useful)
+    ip_pattern = r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
+    ips = re.findall(ip_pattern, text)
+    
+    return {
+        "gps_coordinates": locations,
+        "ip_addresses_found": list(set(ips)),
+        "total_locations": len(locations)
+    }
+
+def extract_gps_from_image_exif(exif_forensic_data):
+    """Pull GPS from already-parsed EXIF data"""
+    gps = exif_forensic_data.get("gps_decimal")
+    if gps:
+        return [{
+            "latitude": gps["latitude"],
+            "longitude": gps["longitude"],
+            "source": "image_exif",
+            "device": exif_forensic_data.get("camera_model", "Unknown"),
+            "timestamp": exif_forensic_data.get("date_taken", "Unknown")
+        }]
+    return []
+
+# ─────────────────────────────────────────
+# MAP GENERATION
+# ─────────────────────────────────────────
+def generate_location_map(locations, case_id, output_dir="/tmp"):
+    """
+    Generate an interactive HTML map with all extracted locations.
+    Uses Folium (Python wrapper for Leaflet.js).
+    Each pin shows: coordinates, source, timestamp, context.
+    """
+    if not locations:
+        return None
+    
+    # Center map on mean of all coordinates
+    avg_lat = sum(l["latitude"] for l in locations) / len(locations)
+    avg_lon = sum(l["longitude"] for l in locations) / len(locations)
+    
+    m = folium.Map(
+        location=[avg_lat, avg_lon],
+        zoom_start=12,
+        tiles='OpenStreetMap'
+    )
+    
+    # Color code by source
+    color_map = {
+        "image_exif": "red",
+        "text_log": "blue",
+        "audio_metadata": "green",
+        "manual": "purple"
+    }
+    
+    for i, loc in enumerate(locations):
+        color = color_map.get(loc.get("source", "manual"), "gray")
+        popup_html = f"""
+        <b>Location {i+1}</b><br>
+        Lat: {loc['latitude']}<br>
+        Lon: {loc['longitude']}<br>
+        Source: {loc.get('source', 'Unknown')}<br>
+        Device: {loc.get('device', 'Unknown')}<br>
+        Time: {loc.get('timestamp', 'Unknown')}<br>
+        Context: {loc.get('context', '')[:100]}
+        """
+        folium.Marker(
+            location=[loc["latitude"], loc["longitude"]],
+            popup=folium.Popup(popup_html, max_width=300),
+            tooltip=f"Location {i+1}: {loc.get('source','unknown')}",
+            icon=folium.Icon(color=color, icon='info-sign')
+        ).add_to(m)
+    
+    # Draw movement path if multiple locations with timestamps
+    if len(locations) > 1:
+        coords = [[l["latitude"], l["longitude"]] for l in locations]
+        folium.PolyLine(
+            coords,
+            weight=2,
+            color='red',
+            opacity=0.8,
+            tooltip="Movement path"
+        ).add_to(m)
+    
+    # Add heatmap layer
+    try:
+        from folium.plugins import HeatMap
+        heat_data = [[l["latitude"], l["longitude"]] for l in locations]
+        HeatMap(heat_data, radius=25).add_to(m)
+    except:
+        pass
+    
+    map_path = f"{output_dir}/location_map_{case_id}.html"
+    m.save(map_path)
+    return map_path
+
+# ─────────────────────────────────────────
+# MOVEMENT ANALYSIS
+# ─────────────────────────────────────────
+def analyze_movement(locations):
+    """
+    Analyze movement patterns from timestamped locations.
+    Detects: speed, impossible movements, frequent locations.
+    """
+    if len(locations) < 2:
+        return {"message": "Need at least 2 locations for movement analysis"}
+    
+    from math import radians, sin, cos, sqrt, atan2
+    
+    def haversine(lat1, lon1, lat2, lon2):
+        """Calculate distance between two GPS points in km"""
+        R = 6371  # Earth radius in km
+        dlat = radians(lat2 - lat1)
+        dlon = radians(lon2 - lon1)
+        a = sin(dlat/2)**2 + cos(radians(lat1))*cos(radians(lat2))*sin(dlon/2)**2
+        return R * 2 * atan2(sqrt(a), sqrt(1-a))
+    
+    analysis = {"segments": [], "flags": []}
+    total_distance = 0
+    
+    for i in range(len(locations)-1):
+        l1, l2 = locations[i], locations[i+1]
+        dist = haversine(l1["latitude"], l1["longitude"],
+                        l2["latitude"], l2["longitude"])
+        total_distance += dist
+        
+        segment = {
+            "from": f"({l1['latitude']}, {l1['longitude']})",
+            "to": f"({l2['latitude']}, {l2['longitude']})",
+            "distance_km": round(dist, 3)
+        }
+        
+        # Flag impossible movements (>900 km/h = faster than commercial flight)
+        if dist > 50:
+            analysis["flags"].append({
+                "type": "SUSPICIOUS_JUMP",
+                "description": f"Location jump of {dist:.1f}km between points {i} and {i+1}",
+                "severity": "HIGH"
+            })
+        
+        analysis["segments"].append(segment)
+    
+    analysis["total_distance_km"] = round(total_distance, 3)
+    analysis["total_locations"] = len(locations)
+    
+    return analysis
+
+def track_locations(text_content=None, exif_data=None, case_id="default"):
+    """Master location tracking function"""
+    all_locations = []
+    
+    if text_content:
+        text_result = extract_gps_from_text(text_content)
+        for loc in text_result["gps_coordinates"]:
+            loc["source"] = "text_log"
+            all_locations.append(loc)
+    
+    if exif_data:
+        exif_locs = extract_gps_from_image_exif(exif_data)
+        all_locations.extend(exif_locs)
+    
+    map_path = generate_location_map(all_locations, case_id)
+    movement = analyze_movement(all_locations)
+    
+    return {
+        "total_locations_found": len(all_locations),
+        "locations": all_locations,
+        "movement_analysis": movement,
+        "map_path": map_path
+    }
