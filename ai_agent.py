@@ -195,6 +195,11 @@ def investigate(query, case_id="default", all_evidence=None):
         evidence_texts = []
         for ev in all_evidence[:5]:  # limit to 5 files to stay within token limit
             fname = ev.get("metadata", {}).get("filename", "unknown")
+            sources.append({
+                "filename": fname,
+                "content": "Full file context used",
+                "type": "fallback"
+            })
             text = ev.get("full_text", "")[:2000]
             iocs = ev.get("iocs", {})
             evidence_texts.append(

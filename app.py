@@ -140,87 +140,61 @@ Answer delivered to you
                 )
 
     # Query input
-    query = st.chat_input("Ask about the evidence... (e.g. 'What suspicious IPs were found?')")
+    # Query input
+    query = st.chat_input("Ask about the evidence... (e.g. 'What suspicious IPs were found?')", key="main_chat")
 
     if query:
-        # Add user message and rerun to show it immediately
         st.session_state.chat_history.append({"role": "user", "content": query})
-        st.rerun()
-
-    # Process last unanswered user message
-    if (st.session_state.chat_history and
-            st.session_state.chat_history[-1]["role"] == "user"):
-
-        query_to_process = st.session_state.chat_history[-1]["content"]
-
-        with st.spinner("🔍 Investigating... (may take 30-60 seconds with local AI)"):
+        
+        with st.spinner("🔍 Investigating..."):
             answer = "No response"
             warnings = []
             blocked = False
-            stages = {}
 
-            # ── Try n8n first (short timeout) ──
+            # Try n8n first
             try:
                 resp = requests.post(N8N, json={
-                    "query": query_to_process,
+                    "query": query,
                     "case_id": st.session_state.case_id,
                     "user_role": st.session_state.user_role
-                }, timeout=5)
+                }, timeout=120)
                 result = resp.json()
-                answer  = result.get("final_response") or result.get("answer") or "No response"
-                warnings = result.get("warnings", [])
-                blocked  = result.get("blocked", False)
-                stages   = result.get("stages", {})
+                st.session_state["last_n8n_result"] = result  # debug
+                answer = (
+                    result.get("response") or 
+                    result.get("final_response") or 
+                    result.get("answer") or
+                    result.get("data", {}).get("response") or
+                    result.get("data", {}).get("final_response") or
+                    str(result) if result else "No response"
+                )
+                warnings = ["Via n8n workflow ✅"]
+                blocked  = result.get("status") == "BLOCKED"
 
             except Exception:
-                # ── n8n not available — call Python API directly ──
+                # Fallback to direct API
                 try:
                     resp = requests.post(
                         f"{API}/investigate/{st.session_state.case_id}",
-                        data={"query": query_to_process},
-                        timeout=120  # 2 minutes for local Ollama
+                        data={"query": query},
+                        timeout=120
                     )
                     raw = resp.json()
                     answer   = raw.get("answer") or raw.get("final_response") or "No response"
-                    warnings = ["Using direct API (n8n not connected)"]
+                    warnings = ["Direct API mode (n8n bypassed)"]
                     blocked  = False
-
                 except requests.exceptions.Timeout:
-                    answer   = "⏱️ Request timed out. Ollama is still processing — please try again."
-                    warnings = ["Timeout — Ollama may be slow on first request"]
-
+                    answer = "⏱️ Timed out — try again."
                 except Exception as e:
-                    answer   = f"❌ Error: {str(e)}"
-                    warnings = ["API call failed"]
+                    answer = f"❌ Error: {str(e)}"
 
-            # Show pipeline stages if available
-            if stages:
-                with st.expander("🔍 Pipeline Execution Details"):
-                    c1, c2, c3 = st.columns(3)
-                    with c1:
-                        iv = stages.get("input_validation", {})
-                        status = "✅ Passed" if iv.get("allowed") else "🚫 Blocked"
-                        st.metric("Input Validation", status)
-                        if iv.get("flags"):
-                            st.write(f"Flags: {iv['flags']}")
-                    with c2:
-                        ae = stages.get("agent_execution", {})
-                        st.metric("Agent Execution",
-                                  "✅ Success" if ae.get("status") == "success" else "❌ Failed")
-                    with c3:
-                        of = stages.get("output_filtering", {})
-                        risk  = of.get("hallucination_risk", "N/A")
-                        color = "🟢" if risk == "LOW" else "🟡" if risk == "MEDIUM" else "🔴"
-                        st.metric("Hallucination Risk", f"{color} {risk}")
-
-            # Save response to chat history
-            st.session_state.chat_history.append({
-                "role": "assistant",
-                "content": answer,
-                "warnings": warnings,
-                "blocked": blocked
-            })
-            st.rerun()
+        st.session_state.chat_history.append({
+            "role": "assistant",
+            "content": answer,
+            "warnings": warnings,
+            "blocked": blocked
+        })
+        st.rerun()
 
 # ══════════════════════════════════════
 # TAB 3 — LOCATION MAP

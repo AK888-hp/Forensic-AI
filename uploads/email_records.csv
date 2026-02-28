@@ -1,0 +1,11 @@
+email_id,timestamp,from,to,subject,body_preview,attachments,ip_origin,flags
+E001,2024-11-13 22:15:00,hr.notifications@corp-secure.net,admin@targetcorp.com,Urgent: Password Reset Required,Click here to reset your password immediately http://corp-secure-login.tk/reset?token=abc123,None,185.220.101.47,PHISHING_DOMAIN|SPOOFED_SENDER|MALICIOUS_URL
+E002,2024-11-13 22:47:00,it.support@targetcorp.com,all-staff@targetcorp.com,System Maintenance Tonight,Scheduled maintenance 11pm-1am. No action required.,None,192.168.1.10,LEGITIMATE
+E003,2024-11-13 23:30:00,noreply@dropbox-share.info,admin@targetcorp.com,John shared a file with you,View the shared document: http://dropbox-share.info/doc/invoice_nov.exe,invoice_nov.exe,91.108.4.100,MALICIOUS_ATTACHMENT|FAKE_DOMAIN|EXECUTABLE_DISGUISED
+E004,2024-11-14 00:01:00,admin@targetcorp.com,anon_drop@protonmail.com,Re: Our arrangement,Files attached as discussed. Delete this after.,employee_records.zip+payroll.zip,192.168.1.105,DATA_EXFILTRATION|INSIDER_THREAT|ENCRYPTED_ATTACHMENT
+E005,2024-11-14 00:01:30,admin@targetcorp.com,xfil_drop@tutanota.com,backup,see attachment,confidential_backup.7z,192.168.1.105,DATA_EXFILTRATION|INSIDER_THREAT
+E006,2024-11-14 09:00:00,ceo@targetcorp.com,finance@targetcorp.com,Urgent Wire Transfer,Transfer $47000 to account below immediately. Do not discuss with anyone.,None,203.0.113.42,BEC_FRAUD|CEO_IMPERSONATION|SPOOFED_SENDER
+E007,2024-11-14 09:05:00,finance@targetcorp.com,ceo@targetcorp.com,Re: Urgent Wire Transfer,Confirmed. Processing now. Account: IBAN GB29NWBK60161331926819,None,192.168.1.204,BEC_FRAUD_RESPONSE|PII_EXPOSURE
+E008,2024-11-14 14:20:00,updates@adobe-flash-player.com,dev.service@targetcorp.com,Critical Security Update Required,Install the attached security patch immediately,flash_update.exe,91.108.4.100,MALWARE_DELIVERY|FAKE_VENDOR|EXECUTABLE_ATTACHMENT
+E009,2024-11-14 14:21:00,dev.service@targetcorp.com,it.support@targetcorp.com,Re: update,Installing now thanks,None,10.0.0.5,MALWARE_EXECUTION_LIKELY
+E010,2024-11-14 16:00:00,security@targetcorp.com,all-staff@targetcorp.com,Security Incident Notice,We are aware of unusual activity. Investigation underway. Do not panic.,None,192.168.1.50,LEGITIMATE|INCIDENT_RESPONSE
