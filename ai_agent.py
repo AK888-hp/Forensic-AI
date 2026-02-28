@@ -1,26 +1,35 @@
 import os
 import json
 import uuid
-from dotenv import load_dotenv
-from openai import OpenAI
+import requests as req
 
-load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# ── Try to connect to Qdrant (optional — falls back to simple LLM if unavailable) ──
+OLLAMA_MODEL = "llama3.2:1b"
+OLLAMA_URL = "http://localhost:11434/api/generate"
+
+def call_llm(prompt):
+    try:
+        response = req.post(OLLAMA_URL, json={
+            "model": OLLAMA_MODEL,
+            "prompt": prompt,
+            "stream": False
+        }, timeout=120)
+        return response.json()["response"]
+    except Exception as e:
+        return f"LLM error: {str(e)}"
+
+QDRANT_AVAILABLE = False
 try:
     from qdrant_client import QdrantClient
     from qdrant_client.models import Distance, VectorParams, PointStruct
     qdrant = QdrantClient(host="localhost", port=6333)
-    qdrant.get_collections()  # test connection
+    qdrant.get_collections()
     QDRANT_AVAILABLE = True
     print("✅ Qdrant connected")
 except Exception as e:
-    QDRANT_AVAILABLE = False
-    print(f"⚠️  Qdrant not available ({e}) — using direct LLM mode")
+    print(f"⚠️  Qdrant not available — using direct LLM mode")
 
 COLLECTION_NAME = "forensic_evidence"
-
 
 # ──────────────────────────────────────
 # VECTOR STORE HELPERS
@@ -33,16 +42,21 @@ def ensure_collection():
     except Exception:
         qdrant.create_collection(
             collection_name=COLLECTION_NAME,
-            vectors_config=VectorParams(size=1536, distance=Distance.COSINE)
+            vectors_config=VectorParams(size=768, distance=Distance.COSINE)
         )
 
 
 def embed_text(text):
-    response = client.embeddings.create(
-        model="text-embedding-3-small",
-        input=text[:8000]
-    )
-    return response.data[0].embedding
+    # Ollama embeddings
+    try:
+        response = req.post("http://localhost:11434/api/embeddings", json={
+            "model": "llama3.2:1b",
+            "prompt": text[:4000]
+        }, timeout=60)
+        return response.json()["embedding"]
+    except Exception as e:
+        print(f"Embedding error: {e}")
+        return [0.0] * 768
 
 
 def index_evidence(parsed_evidence, case_id="default"):
@@ -227,16 +241,8 @@ RELEVANT EVIDENCE:
 Provide a detailed, structured forensic analysis. Cite source files for every finding."""
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.1,
-            max_tokens=2000
-        )
-        answer = response.choices[0].message.content
+        full_prompt = f"{system_prompt}\n\n{user_prompt}"
+        answer = call_llm(full_prompt)
     except Exception as e:
         answer = f"LLM error: {str(e)}"
 
@@ -321,12 +327,7 @@ Generate a professional forensic report with these exact sections:
 9. CONCLUSION"""
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.1,
-            max_tokens=3000
-        )
-        return response.choices[0].message.content
+        response = call_llm(prompt)
+        return response
     except Exception as e:
         return f"Summary generation error: {str(e)}"
